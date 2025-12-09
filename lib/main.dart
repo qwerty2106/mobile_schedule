@@ -14,16 +14,31 @@ void main() async {
 
 //Статический класс для запросов
 class Api {
+  //Выборка всех записей
   static Future<dynamic> getData() {
-    return Supabase.instance.client.from('tasks').select();
+    return Supabase.instance.client.from('lessons').select();
   }
 
-  static Future<dynamic> createData(subject, type, task) {
-    return Supabase.instance.client.from('tasks').insert({
+  //Создание записи
+  static Future<dynamic> createData(
+    subject,
+    type,
+    task,
+    startTime,
+    finishTime,
+  ) {
+    return Supabase.instance.client.from('lessons').insert({
       'subject': subject,
       'type': type,
       'task': task,
+      'start_time': startTime.toIso8601String(),
+      'finish_time': finishTime.toIso8601String(),
     });
+  }
+
+  //Удаление записи
+  static Future<dynamic> deleteData(id) {
+    return Supabase.instance.client.from('lessons').delete().eq('id', id);
   }
 }
 
@@ -47,28 +62,74 @@ class MyHomePage extends StatefulWidget {
   State<MyHomePage> createState() => _MyHomePageState();
 }
 
+void _delete(id) async{
+  await Api.deleteData(id);
+}
+
 class _MyHomePageState extends State<MyHomePage> {
   @override
   Widget build(BuildContext context) {
     return FutureBuilder(
+      //Запрос
       future: Api.getData(),
       builder: (context, snapshot) {
+        //Запрос выполнен
         if (snapshot.connectionState == ConnectionState.done) {
+          //Ошибка
           if (snapshot.hasError) {
             return Center(child: Text('${snapshot.error} occured'));
-          } else if (snapshot.hasData) {
+          }
+          //Данные есть
+          else if (snapshot.hasData) {
             final data = snapshot.data;
             return Scaffold(
               appBar: AppBar(
                 backgroundColor: Theme.of(context).colorScheme.inversePrimary,
                 title: Text('Schedule'),
               ),
-              body: ListTileTheme(
-                child: ListView.separated(
-                  itemCount: data.length,
-                  separatorBuilder: (context, index) => Divider(),
-                  itemBuilder: (context, index) =>
-                      ListTile(title: Text(data[index]['subject'])),
+              body: ListView.builder(
+                itemCount: data.length,
+                itemBuilder: (context, index) => ListTile(
+                  title: Row(
+                    children: [
+                      // Column(
+                      //   children: [Text(data[index]['priority'].toString())],
+                      // ),
+                      Divider(color: Colors.grey, thickness: 2),
+                      Column(
+                        children: [
+                          Text(
+                            data[index]['start_time'].toString().substring(
+                              11,
+                              16,
+                            ),
+                          ),
+                          Text(
+                            data[index]['finish_time'].toString().substring(
+                              11,
+                              16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      // Divider(color: Colors.grey, thickness: 2),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(data[index]['subject'].toString()),
+                          Text(
+                            style: TextStyle(color: Colors.grey),
+                            data[index]['type'].toString(),
+                          ),
+                          Text(
+                            style: TextStyle(fontStyle: FontStyle.italic),
+                            data[index]['task'].toString(),
+                          ),
+                          TextButton(onPressed: () => _delete(data[index]['id']), child: Text('Удалить'))
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
 
@@ -104,11 +165,11 @@ class _FormRouteState extends State<FormRoute> {
   String subject = "";
   String type = "";
   String task = "";
-  String timeStart = "";
-  String timeFinish = "";
+  DateTime startTime = DateTime.now();
+  DateTime finishTime = DateTime.now();
 
-  void _submit() {
-    Api.createData(subject, type, task);
+  void _submit() async {
+    await Api.createData(subject, type, task, startTime, finishTime);
   }
 
   @override
@@ -128,7 +189,7 @@ class _FormRouteState extends State<FormRoute> {
               TextFormField(
                 decoration: InputDecoration(labelText: 'Subject'),
                 keyboardType: TextInputType.text,
-                onFieldSubmitted: (value) {
+                onChanged: (value) {
                   setState(() {
                     subject = value;
                   });
@@ -138,7 +199,7 @@ class _FormRouteState extends State<FormRoute> {
               TextFormField(
                 decoration: InputDecoration(labelText: 'Type'),
                 keyboardType: TextInputType.text,
-                onFieldSubmitted: (value) {
+                onChanged: (value) {
                   setState(() {
                     type = value;
                   });
@@ -148,7 +209,7 @@ class _FormRouteState extends State<FormRoute> {
               TextFormField(
                 decoration: InputDecoration(labelText: 'Task'),
                 keyboardType: TextInputType.text,
-                onFieldSubmitted: (value) {
+                onChanged: (value) {
                   setState(() {
                     task = value;
                   });
