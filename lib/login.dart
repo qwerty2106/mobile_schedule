@@ -11,19 +11,19 @@ class __LoginPageState extends State<LoginPage> {
   final _formKey = GlobalKey<FormState>();
 
   final api = Api();
-  String login = "";
+  String email = "";
   String password = "";
   int _currentIndex = 1;
 
   void _signIn() async {
-    if (login.trim() == "" || password.trim() == "") return;
-    await api.signIn(login, password);
+    if (email.trim() == "" || password.trim() == "") return;
+    await api.signIn(email, password);
     setState(() {});
   }
 
   void _signUp() async {
-    if (login.trim() == "" || password.trim() == "") return;
-    await api.signUp(login, password);
+    if (email.trim() == "" || password.trim() == "") return;
+    await api.signUp(email, password);
     setState(() {});
   }
 
@@ -32,7 +32,7 @@ class __LoginPageState extends State<LoginPage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        title: Text('Login'),
+        title: Text('Вход'),
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
@@ -59,7 +59,7 @@ class __LoginPageState extends State<LoginPage> {
                   TextField(
                     decoration: InputDecoration(labelText: 'Введите логин...'),
                     onChanged: (value) {
-                      login = value;
+                      email = value;
                     },
                   ),
                   TextField(
