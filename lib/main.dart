@@ -28,7 +28,14 @@ class MyApp extends StatelessWidget {
       routes: {
         '/': (content) => const MyHomePage(),
         '/login': (content) => const LoginPage(),
-        '/form': (content) => const FormPage(),
+        '/form': (context) {
+          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+          if (args != null && args.containsKey('id')) {
+            return FormPage(lessonId: args['id']); //Обновление записи
+          } else {
+            return FormPage(); //Создание новой записи
+          }
+        },
       },
     );
   }
@@ -98,20 +105,13 @@ class _MyHomePageState extends State<MyHomePage> {
                       Column(
                         children: [
                           Text(
-                            data[index]['start_time'].toString().substring(
-                              11,
-                              16,
-                            ),
+                            data[index]['start_time'].toString().substring(11, 16),
                           ),
                           Text(
-                            data[index]['finish_time'].toString().substring(
-                              11,
-                              16,
-                            ),
+                            data[index]['finish_time'].toString().substring(11, 16),
                           ),
                         ],
-                      ),
-                      // Divider(color: Colors.grey, thickness: 2),
+                      ), 
                       Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -124,9 +124,19 @@ class _MyHomePageState extends State<MyHomePage> {
                             style: TextStyle(fontStyle: FontStyle.italic),
                             data[index]['task'].toString(),
                           ),
-                          TextButton(
+                          IconButton(
+                            icon: Icon(Icons.delete, color: Colors.red),
                             onPressed: () => _delete(data[index]['id']),
-                            child: Text('Удалить'),
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.edit),
+                            onPressed: () {
+                              Navigator.pushNamed(
+                                context,
+                                '/form',
+                                arguments: {'id': data[index]['id']},
+                              );
+                            },
                           ),
                         ],
                       ),

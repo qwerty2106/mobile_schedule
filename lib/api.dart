@@ -47,4 +47,15 @@ class Api {
   Future<dynamic> deleteData(id) {
     return Supabase.instance.client.from('lessons').delete().eq('id', id);
   }
+
+  //Обновление зависи
+  Future<dynamic> updateData(int id, String subject, String type, String task, DateTime startTime, DateTime finishTime) {
+    return Supabase.instance.client.from('lessons').update({
+      'subject': subject,
+      'type': type,
+      'task': task,
+      'start_time': startTime.toIso8601String(),
+      'finish_time': finishTime.toIso8601String(),
+    }).eq('id', id);
+  }
 }
