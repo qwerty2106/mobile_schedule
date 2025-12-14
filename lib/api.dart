@@ -1,61 +1,83 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
 
 class Api {
   //Выборка всех записей
-  Future<dynamic> getData() {
-    return Supabase.instance.client.from('lessons').select();
+  Future<dynamic> getData() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return <dynamic>[];
+    return Supabase.instance.client.from('lessons').select().eq('user_id', user.id);
   }
 
   //Регистрация
-  Future<dynamic> signUp(String email, String password) async {
+  /// Returns `null` on success, or an error message string on failure.
+  Future<String?> signUp(String email, String password) async {
     try {
       await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
       );
-      print('Пользователь успешно зарегистрирован!');
+      return null;
     } catch (e) {
-      print('Ошибка регистрации! $e');
+      debugPrint('Ошибка регистрации! $e');
+      return e.toString();
     }
   }
 
   //Аутентификация
-  Future<dynamic> signIn(String email, String password) async {
+  /// Returns `null` on success, or an error message string on failure.
+  Future<String?> signIn(String email, String password) async {
     try {
       await Supabase.instance.client.auth.signInWithPassword(
         email: email,
         password: password,
       );
-      print('Успешный вход!');
+      return null;
     } catch (e) {
-      print('Ошибка входа! $e');
+      debugPrint('Ошибка входа! $e');
+      return e.toString();
     }
   }
 
   //Создание записи
   Future<dynamic> createData(subject, type, task, startTime, finishTime) {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
     return Supabase.instance.client.from('lessons').insert({
       'subject': subject,
       'type': type,
       'task': task,
       'start_time': startTime.toIso8601String(),
       'finish_time': finishTime.toIso8601String(),
+      'user_id': user.id,
     });
   }
 
   //Удаление записи
   Future<dynamic> deleteData(id) {
-    return Supabase.instance.client.from('lessons').delete().eq('id', id);
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+    return Supabase.instance.client
+        .from('lessons')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', user.id);
   }
 
   //Обновление зависи
   Future<dynamic> updateData(int id, String subject, String type, String task, DateTime startTime, DateTime finishTime) {
-    return Supabase.instance.client.from('lessons').update({
-      'subject': subject,
-      'type': type,
-      'task': task,
-      'start_time': startTime.toIso8601String(),
-      'finish_time': finishTime.toIso8601String(),
-    }).eq('id', id);
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) throw Exception('User not authenticated');
+    return Supabase.instance.client
+        .from('lessons')
+        .update({
+          'subject': subject,
+          'type': type,
+          'task': task,
+          'start_time': startTime.toIso8601String(),
+          'finish_time': finishTime.toIso8601String(),
+        })
+        .eq('id', id)
+        .eq('user_id', user.id);
   }
 }

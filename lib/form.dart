@@ -52,32 +52,40 @@ class _FormPageState extends State<FormPage> {
 
   Future<void> _loadLessonData(int id) async {
     try {
+      final uid = Supabase.instance.client.auth.currentUser?.id;
+      if (uid == null) throw Exception('User not authenticated');
+
       final response = await Supabase.instance.client
           .from('lessons')
           .select()
           .eq('id', id)
+          .eq('user_id', uid)
           .maybeSingle();
 
       if (response != null) {
-        setState(() {
-          _currentLesson = response as Map<String, dynamic>;
-          //Обновляем контроллеры
-          _subjectController.text = _currentLesson?['subject'] ?? '';
-          _typeController.text = _currentLesson?['type'] ?? '';
-          _taskController.text = _currentLesson?['task'] ?? '';
-          _startTime = DateTime.tryParse(_currentLesson?['start_time']) ?? DateTime.now();
-          _finishTime = DateTime.tryParse(_currentLesson?['finish_time']) ?? DateTime.now().add(const Duration(hours: 1));
-        });
+        if (!mounted) return;
+        _currentLesson = Map<String, dynamic>.from(response as Map);
+        //Обновляем контроллеры
+        _subjectController.text = _currentLesson?['subject'] ?? '';
+        _typeController.text = _currentLesson?['type'] ?? '';
+        _taskController.text = _currentLesson?['task'] ?? '';
+        _startTime = DateTime.tryParse(_currentLesson?['start_time']?.toString() ?? '') ?? DateTime.now();
+        _finishTime = DateTime.tryParse(_currentLesson?['finish_time']?.toString() ?? '') ?? DateTime.now().add(const Duration(hours: 1));
+        setState(() {});
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Запись не найдена')),
-        );
-        Navigator.pop(context);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Запись не найдена')),
+          );
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Ошибка загрузки данных: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ошибка загрузки данных: $e')),
+        );
+      }
     }
   }
 
@@ -89,13 +97,18 @@ class _FormPageState extends State<FormPage> {
       return;
     }
 
-    if (widget.lessonId != null) {
-      await api.updateData(widget.lessonId!, _subjectController.text, _typeController.text, _taskController.text, _startTime!, _finishTime!);
-    } else {
-      await api.createData(_subjectController.text, _typeController.text, _taskController.text, _startTime!, _finishTime!);
+    try {
+      if (widget.lessonId != null) {
+        await api.updateData(widget.lessonId!, _subjectController.text, _typeController.text, _taskController.text, _startTime!, _finishTime!);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Запись обновлена')));
+      } else {
+        await api.createData(_subjectController.text, _typeController.text, _taskController.text, _startTime!, _finishTime!);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Запись создана')));
+      }
+      if (mounted) Navigator.pop(context);
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка сохранения: $e')));
     }
-
-    Navigator.pop(context);
   }
 
   //Методы выбора даты/времени
@@ -112,6 +125,7 @@ class _FormPageState extends State<FormPage> {
         initialTime: TimeOfDay.fromDateTime(_startTime ?? DateTime.now()),
       );
       if (time != null) {
+        if (!mounted) return;
         setState(() {
           _startTime = DateTime(
             date.year,
@@ -127,7 +141,7 @@ class _FormPageState extends State<FormPage> {
 
   Future<void> _selectFinishTime() async {
     if (_startTime == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Сначала выберите время начала')),
       );
       return;
@@ -144,6 +158,7 @@ class _FormPageState extends State<FormPage> {
         initialTime: TimeOfDay.fromDateTime(_finishTime ?? _startTime!),
       );
       if (time != null) {
+        if (!mounted) return;
         setState(() {
           _finishTime = DateTime(
             date.year,

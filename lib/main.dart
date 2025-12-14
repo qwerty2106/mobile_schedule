@@ -19,12 +19,13 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
   @override
   Widget build(BuildContext context) {
+    final initial = Supabase.instance.client.auth.currentUser == null ? '/login' : '/';
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.purple),
       ),
-      initialRoute: '/',
+      initialRoute: initial,
       routes: {
         '/': (content) => const MyHomePage(),
         '/login': (content) => const LoginPage(),
@@ -51,7 +52,19 @@ class _MyHomePageState extends State<MyHomePage> {
   int _currentIndex = 0;
   final api = Api();
 
-  void _delete(id) async {
+  @override
+  void initState() {
+    super.initState();
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) {
+      //Если пользователь не авторизован, то открываем login
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Navigator.pushReplacementNamed(context, '/login');
+      });
+    }
+  }
+
+  Future<void> _delete(id) async {
     await api.deleteData(id);
   }
 
@@ -126,7 +139,16 @@ class _MyHomePageState extends State<MyHomePage> {
                           ),
                           IconButton(
                             icon: Icon(Icons.delete, color: Colors.red),
-                            onPressed: () => _delete(data[index]['id']),
+                            onPressed: () async {
+                              try {
+                                await _delete(data[index]['id']);
+                                if (!mounted) return;
+                                setState(() {});
+                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Запись удалена')));
+                              } catch (e) {
+                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка удаления: $e')));
+                              }
+                            },
                           ),
                           IconButton(
                             icon: Icon(Icons.edit),
@@ -135,7 +157,7 @@ class _MyHomePageState extends State<MyHomePage> {
                                 context,
                                 '/form',
                                 arguments: {'id': data[index]['id']},
-                              );
+                              ).then((_) => setState(() {}));
                             },
                           ),
                         ],
@@ -149,7 +171,7 @@ class _MyHomePageState extends State<MyHomePage> {
               floatingActionButton: FloatingActionButton(
                 child: const Icon(Icons.add),
                 onPressed: () {
-                  Navigator.pushNamed(context, '/form');
+                  Navigator.pushNamed(context, '/form').then((_) => setState(() {}));
                 },
               ),
             );

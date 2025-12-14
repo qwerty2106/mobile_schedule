@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_schedule/api.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -17,14 +18,33 @@ class __LoginPageState extends State<LoginPage> {
 
   void _signIn() async {
     if (email.trim() == "" || password.trim() == "") return;
-    await api.signIn(email, password);
-    setState(() {});
+    final error = await api.signIn(email, password);
+    if (error == null) {
+      if (mounted) Navigator.pushReplacementNamed(context, '/');
+    } else {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка входа: $error')));
+    }
   }
 
   void _signUp() async {
     if (email.trim() == "" || password.trim() == "") return;
-    await api.signUp(email, password);
-    setState(() {});
+    final error = await api.signUp(email, password);
+    if (error == null) {
+      if (mounted) Navigator.pushReplacementNamed(context, '/');
+    } else {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка регистрации: $error')));
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user != null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Navigator.pushReplacementNamed(context, '/');
+      });
+    }
   }
 
   @override
