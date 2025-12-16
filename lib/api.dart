@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
 
@@ -6,7 +7,27 @@ class Api {
   Future<dynamic> getData() async {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) return <dynamic>[];
-    return Supabase.instance.client.from('lessons').select().eq('user_id', user.id);
+    final startOfDay = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
+    final endOfDay = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+      23,
+      59,
+      59,
+    );
+    final result = await Supabase.instance.client
+        .from('lessons')
+        .select()
+        .eq('user_id', user.id)
+        .gte('start_time', startOfDay.toIso8601String()) //больше
+        .lte('start_time', endOfDay.toIso8601String()) //меньше
+        .order('start_time');
+    return result;
   }
 
   //Регистрация
@@ -65,7 +86,14 @@ class Api {
   }
 
   //Обновление зависи
-  Future<dynamic> updateData(int id, String subject, String type, String task, DateTime startTime, DateTime finishTime) {
+  Future<dynamic> updateData(
+    int id,
+    String subject,
+    String type,
+    String task,
+    DateTime startTime,
+    DateTime finishTime,
+  ) {
     final user = Supabase.instance.client.auth.currentUser;
     if (user == null) throw Exception('User not authenticated');
     return Supabase.instance.client
