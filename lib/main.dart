@@ -3,6 +3,7 @@ import 'package:mobile_schedule/api.dart';
 import 'package:mobile_schedule/form.dart';
 import 'package:mobile_schedule/login.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
 
 //Запуск приложения
 void main() async {
@@ -19,7 +20,9 @@ class MyApp extends StatelessWidget {
   const MyApp({super.key});
   @override
   Widget build(BuildContext context) {
-    final initial = Supabase.instance.client.auth.currentUser == null ? '/login' : '/';
+    final initial = Supabase.instance.client.auth.currentUser == null
+        ? '/login'
+        : '/';
     return MaterialApp(
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
@@ -30,7 +33,9 @@ class MyApp extends StatelessWidget {
         '/': (content) => const MyHomePage(),
         '/login': (content) => const LoginPage(),
         '/form': (context) {
-          final args = ModalRoute.of(context)!.settings.arguments as Map<String, dynamic>?;
+          final args =
+              ModalRoute.of(context)!.settings.arguments
+                  as Map<String, dynamic>?;
           if (args != null && args.containsKey('id')) {
             return FormPage(lessonId: args['id']); //Обновление записи
           } else {
@@ -112,53 +117,81 @@ class _MyHomePageState extends State<MyHomePage> {
               body: ListView.builder(
                 itemCount: data.length,
                 itemBuilder: (context, index) => ListTile(
-                  title: Row(
+                  title: Column(
                     children: [
-                      Divider(color: Colors.grey, thickness: 2),
-                      Column(
+                      Row(
                         children: [
                           Text(
-                            data[index]['start_time'].toString().substring(11, 16),
-                          ),
-                          Text(
-                            data[index]['finish_time'].toString().substring(11, 16),
+                            'Сегодня ${DateFormat('dd.mm.yy').format(DateTime.now())}',
+                            style: TextStyle(color: Colors.grey),
                           ),
                         ],
-                      ), 
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      ),
+
+                      Row(
                         children: [
-                          Text(data[index]['subject'].toString()),
-                          Text(
-                            style: TextStyle(color: Colors.grey),
-                            data[index]['type'].toString(),
+                          Divider(color: Colors.grey, thickness: 2),
+                          Column(
+                            children: [
+                              Text(
+                                data[index]['start_time'].toString().substring(
+                                  11,
+                                  16,
+                                ),
+                              ),
+                              Text(
+                                data[index]['finish_time'].toString().substring(
+                                  11,
+                                  16,
+                                ),
+                              ),
+                            ],
                           ),
-                          Text(
-                            style: TextStyle(fontStyle: FontStyle.italic),
-                            data[index]['task'].toString(),
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.delete, color: Colors.red),
-                            onPressed: () async {
-                              try {
-                                await _delete(data[index]['id']);
-                                if (!mounted) return;
-                                setState(() {});
-                                ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Запись удалена')));
-                              } catch (e) {
-                                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка удаления: $e')));
-                              }
-                            },
-                          ),
-                          IconButton(
-                            icon: Icon(Icons.edit),
-                            onPressed: () {
-                              Navigator.pushNamed(
-                                context,
-                                '/form',
-                                arguments: {'id': data[index]['id']},
-                              ).then((_) => setState(() {}));
-                            },
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(data[index]['subject'].toString()),
+                              Text(
+                                style: TextStyle(color: Colors.grey),
+                                data[index]['type'].toString(),
+                              ),
+                              Text(
+                                style: TextStyle(fontStyle: FontStyle.italic),
+                                data[index]['task'].toString(),
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete, color: Colors.red),
+                                onPressed: () async {
+                                  try {
+                                    await _delete(data[index]['id']);
+                                    if (!mounted) return;
+                                    setState(() {});
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Запись удалена')),
+                                    );
+                                  } catch (e) {
+                                    if (mounted)
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text('Ошибка удаления: $e'),
+                                        ),
+                                      );
+                                  }
+                                },
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.edit),
+                                onPressed: () {
+                                  Navigator.pushNamed(
+                                    context,
+                                    '/form',
+                                    arguments: {'id': data[index]['id']},
+                                  ).then((_) => setState(() {}));
+                                },
+                              ),
+                            ],
                           ),
                         ],
                       ),
@@ -171,7 +204,10 @@ class _MyHomePageState extends State<MyHomePage> {
               floatingActionButton: FloatingActionButton(
                 child: const Icon(Icons.add),
                 onPressed: () {
-                  Navigator.pushNamed(context, '/form').then((_) => setState(() {}));
+                  Navigator.pushNamed(
+                    context,
+                    '/form',
+                  ).then((_) => setState(() {}));
                 },
               ),
             );
