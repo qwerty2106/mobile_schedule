@@ -4,10 +4,16 @@ import 'package:mobile_schedule/form.dart';
 import 'package:mobile_schedule/login.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'widgets/tasks_list.dart';
+import 'widgets/past_list.dart';
 
 //Запуск приложения
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // initialize intl locale data (used for Russian weekdays/dates)
+  await initializeDateFormatting('ru');
+
   await Supabase.initialize(
     url: 'https://dllhkfwyiexblndowpxh.supabase.co',
     anonKey:
@@ -56,6 +62,8 @@ class MyHomePage extends StatefulWidget {
 class _MyHomePageState extends State<MyHomePage> {
   int _currentIndex = 0;
   final api = Api();
+  final GlobalKey _tasksKey = GlobalKey();
+  final GlobalKey _pastKey = GlobalKey();
 
   @override
   void initState() {
@@ -75,146 +83,85 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      //Запрос
-      future: api.getData(),
-      builder: (context, snapshot) {
-        //Запрос выполнен
-        if (snapshot.connectionState == ConnectionState.done) {
-          //Ошибка
-          if (snapshot.hasError) {
-            return Center(child: Text('${snapshot.error} occured'));
-          }
-          //Данные есть
-          else if (snapshot.hasData) {
-            final data = snapshot.data;
-            return Scaffold(
-              appBar: AppBar(
-                backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-                title: Text('Расписание занятий'),
-              ),
-              bottomNavigationBar: BottomNavigationBar(
-                currentIndex: _currentIndex,
-                onTap: (index) {
-                  setState(() {
-                    _currentIndex = index;
-                  });
-                  if (index == 1) {
-                    Navigator.pushNamed(context, '/login');
-                  }
-                },
-                items: [
-                  BottomNavigationBarItem(
-                    label: 'Домой',
-                    icon: Icon(Icons.home),
-                  ),
-                  BottomNavigationBarItem(
-                    label: 'Вход',
-                    icon: Icon(Icons.login),
-                  ),
-                ],
-              ),
-              body: ListView.builder(
-                itemCount: data.length,
-                itemBuilder: (context, index) => ListTile(
-                  title: Column(
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            'Сегодня ${DateFormat('dd.mm.yy').format(DateTime.now())}',
-                            style: TextStyle(color: Colors.grey),
-                          ),
-                        ],
-                      ),
+    // build UI by selected tab
+    String title = 'Расписание занятий';
+    final rawHeaderDate = DateFormat('EEEE, dd.MM.yy', 'ru').format(DateTime.now());
+    final headerDate = rawHeaderDate.isNotEmpty ? (rawHeaderDate[0].toUpperCase() + rawHeaderDate.substring(1)) : rawHeaderDate;
 
-                      Row(
-                        children: [
-                          Divider(color: Colors.grey, thickness: 2),
-                          Column(
-                            children: [
-                              Text(
-                                data[index]['start_time'].toString().substring(
-                                  11,
-                                  16,
-                                ),
-                              ),
-                              Text(
-                                data[index]['finish_time'].toString().substring(
-                                  11,
-                                  16,
-                                ),
-                              ),
-                            ],
-                          ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(data[index]['subject'].toString()),
-                              Text(
-                                style: TextStyle(color: Colors.grey),
-                                data[index]['type'].toString(),
-                              ),
-                              Text(
-                                style: TextStyle(fontStyle: FontStyle.italic),
-                                data[index]['task'].toString(),
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.delete, color: Colors.red),
-                                onPressed: () async {
-                                  try {
-                                    await _delete(data[index]['id']);
-                                    if (!mounted) return;
-                                    setState(() {});
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text('Запись удалена')),
-                                    );
-                                  } catch (e) {
-                                    if (mounted)
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        SnackBar(
-                                          content: Text('Ошибка удаления: $e'),
-                                        ),
-                                      );
-                                  }
-                                },
-                              ),
-                              IconButton(
-                                icon: Icon(Icons.edit),
-                                onPressed: () {
-                                  Navigator.pushNamed(
-                                    context,
-                                    '/form',
-                                    arguments: {'id': data[index]['id']},
-                                  ).then((_) => setState(() {}));
-                                },
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+    Widget body = Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              const Text('Сегодня', style: TextStyle(color: Colors.grey)),
+              const SizedBox(width: 8),
+              Text(headerDate, style: const TextStyle(color: Colors.grey)),
+            ],
+          ),
+        ),
+        Expanded(
+          child: TasksList(
+            key: _tasksKey,
+            api: api,
+          ),
+        ),
+      ],
+    );
 
-              //Добавление записи
-              floatingActionButton: FloatingActionButton(
-                child: const Icon(Icons.add),
-                onPressed: () {
-                  Navigator.pushNamed(
-                    context,
-                    '/form',
-                  ).then((_) => setState(() {}));
-                },
-              ),
-            );
+    if (_currentIndex == 1) {
+      title = 'Прошедшие занятия';
+      body = PastList(key: _pastKey, api: api);
+    }
+
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
+        title: Text(title),
+      ),
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          // login should open route instead of acting as a tab
+          if (index == 2) {
+            Navigator.pushNamed(context, '/login');
+            return;
           }
-        }
-        return Center(child: CircularProgressIndicator());
-      },
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        items: const [
+          BottomNavigationBarItem(
+            label: 'Домой',
+            icon: Icon(Icons.home),
+          ),
+          BottomNavigationBarItem(
+            label: 'Прошедшие',
+            icon: Icon(Icons.history),
+          ),
+          BottomNavigationBarItem(
+            label: 'Вход',
+            icon: Icon(Icons.login),
+          ),
+        ],
+      ),
+      body: body,
+      floatingActionButton: _currentIndex == 0
+          ? FloatingActionButton(
+              child: const Icon(Icons.add),
+              onPressed: () {
+                Navigator.pushNamed(
+                  context,
+                  '/form',
+                ).then((result) {
+                  // refresh lists after returning from form
+                  ( _tasksKey.currentState as dynamic)?.refresh();
+                  ( _pastKey.currentState as dynamic)?.refresh();
+                });
+              },
+            )
+          : null,
     );
   }
 }

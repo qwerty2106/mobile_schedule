@@ -12,21 +12,31 @@ class Api {
       DateTime.now().month,
       DateTime.now().day,
     );
-    final endOfDay = DateTime(
+    final result = await Supabase.instance.client
+        .from('lessons')
+        .select()
+        .eq('user_id', user.id)
+        .gte('start_time', startOfDay.toIso8601String()) // начиная с сегодняшнего дня
+        .order('start_time');
+    return result;
+  }
+
+  //Прошедшие занятия
+  Future<dynamic> getPastData() async {
+    final user = Supabase.instance.client.auth.currentUser;
+    if (user == null) return <dynamic>[];
+    final startOfDay = DateTime(
       DateTime.now().year,
       DateTime.now().month,
       DateTime.now().day,
-      23,
-      59,
-      59,
     );
     final result = await Supabase.instance.client
         .from('lessons')
         .select()
         .eq('user_id', user.id)
-        .gte('start_time', startOfDay.toIso8601String()) //больше
-        .lte('start_time', endOfDay.toIso8601String()) //меньше
-        .order('start_time');
+        .lt('start_time', startOfDay.toIso8601String())
+        .order('start_time', ascending: false);
+    return result;
     return result;
   }
 

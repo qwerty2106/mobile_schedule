@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_schedule/api.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:intl/intl.dart';
 
 class FormPage extends StatefulWidget {
   final int? lessonId;
@@ -90,22 +91,24 @@ class _FormPageState extends State<FormPage> {
   }
 
   void _submit() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+
     if (_startTime == null || _finishTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Пожалуйста, выберите время начала и окончания')),
+        const SnackBar(content: Text('Пожалуйста, выберите время начала и окончания')),
       );
       return;
     }
 
     try {
       if (widget.lessonId != null) {
-        await api.updateData(widget.lessonId!, _subjectController.text, _typeController.text, _taskController.text, _startTime!, _finishTime!);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Запись обновлена')));
+        await api.updateData(widget.lessonId!, _subjectController.text.trim(), _typeController.text.trim(), _taskController.text.trim(), _startTime!, _finishTime!);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Запись обновлена')));
       } else {
-        await api.createData(_subjectController.text, _typeController.text, _taskController.text, _startTime!, _finishTime!);
-        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Запись создана')));
+        await api.createData(_subjectController.text.trim(), _typeController.text.trim(), _taskController.text.trim(), _startTime!, _finishTime!);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Запись создана')));
       }
-      if (mounted) Navigator.pop(context);
+      if (mounted) Navigator.pop(context, true);
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Ошибка сохранения: $e')));
     }
@@ -174,65 +177,92 @@ class _FormPageState extends State<FormPage> {
 
   @override
   Widget build(BuildContext context) {
+    String _formatDateTime(DateTime? dt) => dt == null ? 'Не выбрано' : DateFormat('dd.MM.yyyy HH:mm').format(dt);
+
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text(widget.lessonId != null ? 'Редактировать запись' : 'Создать запись'),
       ),
-      body: Padding(
-        padding: EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              //Заголовок (Предмет)
-              TextFormField(
-                controller: _subjectController,
-                decoration: InputDecoration(labelText: 'Предмет'),
-                onChanged: (value) {},
-              ),
-              SizedBox(height: 16),
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                //Заголовок (Предмет)
+                TextFormField(
+                  controller: _subjectController,
+                  decoration: InputDecoration(
+                    labelText: 'Предмет',
+                    prefixIcon: const Icon(Icons.book),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                  validator: (value) => (value == null || value.trim().isEmpty) ? 'Введите предмет' : null,
+                ),
+                const SizedBox(height: 16),
 
-              //Тип
-              TextFormField(
-                controller: _typeController,
-                decoration: InputDecoration(labelText: 'Тип занятия (Лекция, Практика и т.д.)'),
-              ),
-              SizedBox(height: 16),
+                //Тип
+                TextFormField(
+                  controller: _typeController,
+                  decoration: InputDecoration(
+                    labelText: 'Тип занятия (Лекция, Практика и т.д.)',
+                    prefixIcon: const Icon(Icons.event),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+                const SizedBox(height: 16),
 
-              //Задача
-              TextFormField(
-                controller: _taskController,
-                maxLines: 3,
-                decoration: InputDecoration(labelText: 'Задание / Описание'),
-              ),
-              SizedBox(height: 16),
+                //Задача
+                TextFormField(
+                  controller: _taskController,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    labelText: 'Задание / Описание',
+                    prefixIcon: const Icon(Icons.description),
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                  ),
+                ),
+                const SizedBox(height: 16),
 
-              //Начало тайминга
-              ElevatedButton(
-                onPressed: _selectStartTime,
-                child: Text(_startTime == null
-                    ? 'Выберите время начала'
-                    : 'Начало: ${_startTime!.toIso8601String().substring(0, 16)}'),
-              ),
-              SizedBox(height: 16),
+                //Время
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.access_time),
+                        label: Text('Начало: ${_formatDateTime(_startTime)}'),
+                        onPressed: _selectStartTime,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        icon: const Icon(Icons.access_time),
+                        label: Text('Окончание: ${_formatDateTime(_finishTime)}'),
+                        onPressed: _selectFinishTime,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 24),
 
-              //Конец тайминга
-              ElevatedButton(
-                onPressed: _selectFinishTime,
-                child: Text(_finishTime == null
-                    ? 'Выберите время окончания'
-                    : 'Окончание: ${_finishTime!.toIso8601String().substring(0, 16)}'),
-              ),
-              SizedBox(height: 32),
-
-              //Сохранение
-              ElevatedButton(
-                onPressed: _submit,
-                child: Text(widget.lessonId != null ? 'Обновить' : 'Создать'),
-              ),
-            ],
+                //Сохранение
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _submit,
+                    style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: Text(widget.lessonId != null ? 'Обновить' : 'Создать'),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
