@@ -37,21 +37,36 @@ class Api {
         .lt('start_time', startOfDay.toIso8601String())
         .order('start_time', ascending: false);
     return result;
-    return result;
+  }
+
+  // Отправить повторно подтверждение (magic link)
+  /// Попытка отправить magic link для входа на почту. Это эффективная альтернатива повторной отправке подтверждения.
+  /// Возвращает `null` при успехе или строку с ошибкой.
+  Future<String?> resendConfirmation(String email) async {
+    try {
+      await Supabase.instance.client.auth.signInWithOtp(email: email);
+      return null;
+    } catch (e) {
+      debugPrint('Ошибка отправки подтверждения: $e');
+      return e.toString();
+    }
   }
 
   //Регистрация
   /// Returns `null` on success, or an error message string on failure.
-  Future<String?> signUp(String email, String password) async {
+  /// Returns a map: { 'error': String? , 'needsConfirmation': bool }
+  Future<Map<String, dynamic>> signUp(String email, String password) async {
     try {
       await Supabase.instance.client.auth.signUp(
         email: email,
         password: password,
       );
-      return null;
+      // If the user is not logged in immediately, it usually means email confirmation is required
+      final user = Supabase.instance.client.auth.currentUser;
+      return {'error': null, 'needsConfirmation': user == null};
     } catch (e) {
       debugPrint('Ошибка регистрации! $e');
-      return e.toString();
+      return {'error': e.toString(), 'needsConfirmation': false};
     }
   }
 
